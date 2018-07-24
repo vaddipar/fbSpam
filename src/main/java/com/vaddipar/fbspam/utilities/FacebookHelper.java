@@ -55,7 +55,7 @@ class FacebookHelper {
                     apiClient.queryParams(queryParams).accept("application/json").get(ClientResponse.class);
 
         }else{
-            ((MultivaluedMapImpl) queryParams).add("access_token", System.getenv("FB_ACCESS_TOKEN"));
+
             webResponse = apiClient.accept("application/json").get(ClientResponse.class);
         }
 
