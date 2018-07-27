@@ -21,7 +21,7 @@ class FacebookHelper {
     DateFormat fbDateFormat;
 
     FacebookHelper() {
-        fbMyGraphAPIURL = "https://graph.facebook.com/v3.0/me";
+        fbMyGraphAPIURL = "https://graph.facebook.com/v3.1/me";
         fbDateFormat = new SimpleDateFormat("MM/dd/yyyy", Locale.ENGLISH);
         fbDateFormat.setTimeZone(TimeZone.getDefault());
     }
@@ -43,7 +43,7 @@ class FacebookHelper {
         }
     }
 
-    private JSONObject makeGetRequest(String url, MultivaluedMap queryParams) throws JSONException, NullPointerException{
+    public JSONObject makeGetRequest(String url, MultivaluedMap queryParams) throws JSONException, NullPointerException{
         Client webClient = new Client();
         WebResource apiClient = webClient.resource(url);
 
@@ -67,22 +67,12 @@ class FacebookHelper {
         return new JSONObject(webResponse.getEntity(String.class));
     }
 
-    private List<String> getFeedOnDate(String dateString) throws HTTPException, JSONException{
-        /*
-        Given a FB user, get posts from his feed on a certain day.
-         */
-        MultivaluedMap queryParams = new MultivaluedMapImpl();
-        ((MultivaluedMapImpl) queryParams).add("access_token", System.getenv("FB_ACCESS_TOKEN"));
-        dateStringToDate(dateString, queryParams);
-
-        JSONObject respData = makeGetRequest(fbMyGraphAPIURL+"/feed", queryParams);
-        JSONArray posts = respData.getJSONArray("data");
+    private List<String> paginatedRequest(JSONObject respData, JSONArray posts) throws JSONException {
         List<String> postIds = new ArrayList<String>();
-
 
         while (posts!=null){
             for (int postIndex = 0; postIndex < posts.length(); postIndex++) {
-                postIds.add(posts.getJSONObject(postIndex).get("id").toString());
+                postIds.add(posts.getJSONObject(postIndex).get("name").toString());
             }
 
             try{
@@ -98,38 +88,31 @@ class FacebookHelper {
         return postIds;
     }
 
-    private Calendar getUserDOB() throws JSONException, NullPointerException, ParseException{
+    public List<String> getFeedOnDate(String dateString) throws HTTPException, JSONException{
         /*
-        Gets a user birthday from his profile
+        Given a FB user, get posts from his feed on a certain day.
          */
+        MultivaluedMap queryParams = new MultivaluedMapImpl();
+        ((MultivaluedMapImpl) queryParams).add("access_token", System.getenv("FB_ACCESS_TOKEN"));
+        dateStringToDate(dateString, queryParams);
 
-        MultivaluedMapImpl queryParams = new MultivaluedMapImpl();
-        queryParams.add("fields", "birthday");
-        String birthdayString = makeGetRequest(fbMyGraphAPIURL, queryParams).getString("birthday");
-        Calendar bdayDateCal = Calendar.getInstance();
-        bdayDateCal.setTime(fbDateFormat.parse(birthdayString));
-        return bdayDateCal;
+        JSONObject respData = makeGetRequest(fbMyGraphAPIURL+"/feed", queryParams);
+        JSONArray posts = respData.getJSONArray("data");
+
+        return paginatedRequest(respData, posts);
     }
 
-    List<String> getBirthdayWishes() throws JSONException, NullPointerException, ParseException{
+    public List<String> getBooks() throws JSONException, NullPointerException, ParseException{
         /*
-        This method identifies the user's birthday and gets posts from this year's birthday if it has already elapsed
-        (or from last years if it has not elapsed) and replies to their wish by tagging them in the post with a custom
-        message.
+        This methods gets all the books and authors liked by a user.
          */
 
-        Calendar userBday = getUserDOB();
-        Calendar today = Calendar.getInstance();
+        MultivaluedMap queryParams = new MultivaluedMapImpl();
+        ((MultivaluedMapImpl) queryParams).add("access_token", System.getenv("FB_ACCESS_TOKEN"));
 
-        // setting birthday to this year from date of birth
-        userBday.add(Calendar.YEAR, today.get(Calendar.YEAR) - userBday.get(Calendar.YEAR));
-
-        // getting last year's wishes
-
-        if (today.before(userBday))
-            userBday.add(Calendar.YEAR, -1);
-
-        return getFeedOnDate(fbDateFormat.format(userBday.getTime()));
+        JSONObject respData = makeGetRequest(fbMyGraphAPIURL+"/books", queryParams);
+        JSONArray posts = respData.getJSONArray("data");
+        return paginatedRequest(respData, posts);
 
     }
 }
